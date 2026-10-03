@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 
 namespace GameTimer;
@@ -16,6 +17,17 @@ public partial class App : Application
     /// <summary>설정 창에서 키를 캡처하는 동안에는 타이머를 트리거하지 않는다.</summary>
     public bool IsCapturingKey { get; set; }
 
+    public App()
+    {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            ReportError(args.Exception);
+            args.Handled = true;
+            Shutdown();
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) => ReportError(args.ExceptionObject as Exception);
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         _mutex = new Mutex(true, @"Local\GameTimer.SingleInstance", out bool createdNew);
@@ -23,6 +35,8 @@ public partial class App : Application
         {
             _mutex.Dispose();
             _mutex = null;
+            MessageBox.Show("게임 타이머가 이미 실행 중입니다.\n화면에 안 보이면 작업 관리자에서 GameTimer를 종료한 뒤 다시 실행하세요.",
+                "게임 타이머", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
         }
@@ -39,6 +53,22 @@ public partial class App : Application
         _hook = new KeyboardHook();
         _hook.KeyDown += OnGlobalKeyDown;
         _hook.Install();
+
+        // 첫 실행처럼 타이머가 없으면 설정 창을 바로 띄운다.
+        if (Settings.Timers.Count == 0) OpenSettings();
+    }
+
+    private static void ReportError(Exception? ex)
+    {
+        string text = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}\n\n";
+        try
+        {
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameTimer");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "error.log"), text);
+        }
+        catch { /* 로그 실패는 무시 */ }
+        MessageBox.Show(ex?.ToString() ?? "알 수 없는 오류", "게임 타이머 오류", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     protected override void OnExit(ExitEventArgs e)
