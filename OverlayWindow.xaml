@@ -50,10 +50,15 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding Name}" FontSize="12" Margin="0,0,6,0"
+                    <TextBlock x:Name="StopwatchNameText" Text="{Binding Name}" FontSize="12" Margin="0,0,6,0"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                Background="Transparent" ToolTip="더블클릭해서 이름 변경"
                                MouseLeftButtonDown="StopwatchName_MouseLeftButtonDown"/>
+                    <TextBox x:Name="StopwatchNameBox" Style="{StaticResource DarkTextBox}" FontSize="12"
+                             Padding="2,0" Margin="0,0,6,0" VerticalAlignment="Center"
+                             BorderBrush="{StaticResource AccentBrush}" Visibility="Collapsed"
+                             PreviewKeyDown="StopwatchNameBox_PreviewKeyDown"
+                             LostKeyboardFocus="StopwatchNameBox_LostKeyboardFocus"/>
                     <TextBlock Grid.Column="1" Text="{Binding ElapsedText}" FontSize="16"
                                FontWeight="Bold" FontFamily="Consolas, Segoe UI"
                                VerticalAlignment="Center"/>

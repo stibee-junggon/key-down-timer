@@ -9,7 +9,6 @@ public partial class App : Application
     private KeyboardHook? _hook;
     private OverlayWindow? _overlay;
     private SettingsWindow? _settingsWindow;
-    private RenameWindow? _renameWindow;
 
     public static App Instance => (App)Current;
 
@@ -88,7 +87,7 @@ public partial class App : Application
     // 훅 콜백 안에서 호출된다. 빠르게 반환하고 UI 작업은 Dispatcher로 넘긴다.
     private void OnGlobalKeyDown(int vk)
     {
-        if (IsCapturingKey || _renameWindow != null) return;
+        if (IsCapturingKey || _overlay?.IsEditingName == true) return;
         Dispatcher.BeginInvoke(() => _overlay?.Trigger(vk));
     }
 
@@ -110,23 +109,6 @@ public partial class App : Application
         _settingsWindow.Activate();
     }
 
-    public void OpenRename()
-    {
-        if (_renameWindow != null)
-        {
-            _renameWindow.Activate();
-            return;
-        }
-        var anchor = _overlay == null ? Rect.Empty : new Rect(_overlay.Left, _overlay.Top, _overlay.ActualWidth, _overlay.ActualHeight);
-        _renameWindow = new RenameWindow(Settings.StopwatchName, anchor);
-        _renameWindow.Closed += (_, _) =>
-        {
-            _renameWindow = null;
-        };
-        _renameWindow.Show();
-        _renameWindow.Activate();
-    }
-
     public bool RenameStopwatch(string name)
     {
         name = string.IsNullOrWhiteSpace(name) ? "스톱워치" : name.Trim();
@@ -139,12 +121,8 @@ public partial class App : Application
         catch (Exception ex)
         {
             Settings.StopwatchName = old;
-            if (_renameWindow != null)
-                MessageBox.Show(_renameWindow, "이름을 저장하지 못했습니다.\n" + ex.Message, "게임 타이머",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-            else
-                MessageBox.Show("이름을 저장하지 못했습니다.\n" + ex.Message, "게임 타이머",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("이름을 저장하지 못했습니다.\n" + ex.Message, "게임 타이머",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
         _overlay?.SetStopwatchName(name);

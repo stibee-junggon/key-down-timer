@@ -21,11 +21,22 @@ public partial class OverlayWindow : Window
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
     private readonly ObservableCollection<TimerRow> _rows = new();
     private readonly StopwatchRow _stopwatch = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly DispatcherTimer _ticker;
     private int _volume;
+    private bool _endingNameEdit;
+    private IntPtr _foregroundBeforeEdit;
+
+    /// <summary>이름 편집 중에는 타이머를 트리거하지 않는다.</summary>
+    public bool IsEditingName { get; private set; }
 
     public OverlayWindow()
     {
@@ -34,15 +45,21 @@ public partial class OverlayWindow : Window
         StopwatchBorder.DataContext = _stopwatch;
         _ticker = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Normal, OnTick, Dispatcher);
         _ticker.Start();
+        Deactivated += (_, _) => EndNameEdit(true);
     }
 
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
         // 포커스를 뺏지 않는 도구 창으로 만든다 (게임 입력 방해 방지).
+        SetExStyle(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, true);
+    }
+
+    private void SetExStyle(long flags, bool on)
+    {
         var hwnd = new WindowInteropHelper(this).Handle;
         long ex = GetWindowLongPtr(hwnd, GWL_EXSTYLE).ToInt64();
-        SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr(ex | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW));
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, new IntPtr(on ? ex | flags : ex & ~flags));
     }
 
     public void ApplySettings(AppSettings settings)
@@ -119,7 +136,56 @@ public partial class OverlayWindow : Window
     {
         if (e.ClickCount != 2) return;
         e.Handled = true;
-        App.Instance.OpenRename();
+        if (IsEditingName) return;
+
+        IsEditingName = true;
+        StopwatchNameBox.Text = _stopwatch.Name;
+        StopwatchNameText.Visibility = Visibility.Hidden;
+        StopwatchNameBox.Visibility = Visibility.Visible;
+
+        // 키 입력을 받으려면 편집하는 동안만 창 활성화를 허용한다.
+        _foregroundBeforeEdit = GetForegroundWindow();
+        SetExStyle(WS_EX_NOACTIVATE, false);
+        Activate();
+        SetForegroundWindow(new WindowInteropHelper(this).Handle);
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
+        {
+            if (!IsEditingName) return;
+            Keyboard.Focus(StopwatchNameBox);
+            StopwatchNameBox.SelectAll();
+        });
+    }
+
+    private void StopwatchNameBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) EndNameEdit(true);
+        else if (e.Key == Key.Escape) EndNameEdit(false);
+        else return;
+        e.Handled = true;
+    }
+
+    private void StopwatchNameBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) => EndNameEdit(true);
+
+    private void EndNameEdit(bool save)
+    {
+        // 저장 실패 MessageBox나 TextBox 숨김으로 인한 Deactivated/LostKeyboardFocus 재진입을 막는다.
+        if (!IsEditingName || _endingNameEdit) return;
+        _endingNameEdit = true;
+        try
+        {
+            if (save && StopwatchNameBox.Text != _stopwatch.Name) App.Instance.RenameStopwatch(StopwatchNameBox.Text);
+            StopwatchNameBox.Visibility = Visibility.Collapsed;
+            StopwatchNameText.Visibility = Visibility.Visible;
+            SetExStyle(WS_EX_NOACTIVATE, true);
+            // Enter/Esc로 끝냈으면 편집 전 창(게임)에 포커스를 돌려준다.
+            if (IsActive && _foregroundBeforeEdit != IntPtr.Zero) SetForegroundWindow(_foregroundBeforeEdit);
+            _foregroundBeforeEdit = IntPtr.Zero;
+            IsEditingName = false;
+        }
+        finally
+        {
+            _endingNameEdit = false;
+        }
     }
 
     private void StopwatchToggle_Click(object sender, RoutedEventArgs e) => _stopwatch.Toggle(_clock.Elapsed);
