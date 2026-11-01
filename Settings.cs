@@ -8,6 +8,8 @@ public class TimerEntry
     public int Key { get; set; }
     public string Name { get; set; } = "";
     public int Seconds { get; set; }
+    public int Sound { get; set; }
+    public bool Enabled { get; set; } = true;
 }
 
 public class AppSettings
@@ -17,6 +19,7 @@ public class AppSettings
     public double Opacity { get; set; } = 0.7;
     public double? Left { get; set; }
     public double? Top { get; set; }
+    public string StopwatchName { get; set; } = "스톱워치";
 }
 
 public static class SettingsStore
@@ -42,7 +45,12 @@ public static class SettingsStore
 
         settings.Timers ??= new List<TimerEntry>();
         settings.Timers.RemoveAll(t => t.Seconds < 1 || t.Key <= 0);
-        foreach (var t in settings.Timers) t.Name ??= "";
+        foreach (var t in settings.Timers)
+        {
+            t.Name ??= "";
+            if (t.Sound < 0 || t.Sound >= Chime.Names.Count) t.Sound = 0;
+        }
+        if (string.IsNullOrWhiteSpace(settings.StopwatchName)) settings.StopwatchName = "스톱워치";
         settings.Volume = Math.Clamp(settings.Volume, 0, 100);
         settings.Opacity = Math.Clamp(settings.Opacity, 0.2, 1.0);
         return settings;

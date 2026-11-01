@@ -25,6 +25,12 @@ public class EditRow : INotifyPropertyChanged
     private string _timeText = "";
     public string TimeText { get => _timeText; set => Set(ref _timeText, value); }
 
+    private int _sound;
+    public int Sound { get => _sound; set => Set(ref _sound, value); }
+
+    private bool _enabled = true;
+    public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
+
     private bool _keyError;
     public bool KeyError { get => _keyError; set => Set(ref _keyError, value); }
 
@@ -58,9 +64,10 @@ public partial class SettingsWindow : Window
 
         foreach (var t in settings.Timers)
         {
-            AddRow(new EditRow { Key = t.Key, Name = t.Name, TimeText = TimeFormat.ToText(t.Seconds) });
+            AddRow(new EditRow { Key = t.Key, Name = t.Name, TimeText = TimeFormat.ToText(t.Seconds), Sound = t.Sound, Enabled = t.Enabled });
         }
         RowsList.ItemsSource = _rows;
+        StopwatchNameBox.Text = settings.StopwatchName;
         VolumeSlider.Value = settings.Volume;
         OpacitySlider.Value = Math.Round(settings.Opacity * 100);
         Validate();
@@ -84,7 +91,8 @@ public partial class SettingsWindow : Window
     {
         row.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(EditRow.Key) or nameof(EditRow.TimeText)) Validate();
+            if (e.PropertyName is nameof(EditRow.Key) or nameof(EditRow.TimeText) or nameof(EditRow.Enabled)) Validate();
+            else if (e.PropertyName == nameof(EditRow.Sound)) Chime.Play(row.Sound, (int)VolumeSlider.Value);
         };
         _rows.Add(row);
     }
@@ -93,7 +101,7 @@ public partial class SettingsWindow : Window
     {
         var messages = new List<string>();
 
-        var duplicates = _rows.Where(r => r.Key != null)
+        var duplicates = _rows.Where(r => r.Enabled && r.Key != null)
                               .GroupBy(r => r.Key)
                               .Where(g => g.Count() > 1)
                               .Select(g => g.Key)
@@ -101,7 +109,7 @@ public partial class SettingsWindow : Window
 
         foreach (var row in _rows)
         {
-            row.KeyError = row.Key == null || duplicates.Contains(row.Key);
+            row.KeyError = row.Key == null || (row.Enabled && duplicates.Contains(row.Key));
             row.TimeError = !TimeFormat.TryParse(row.TimeText, out _);
         }
 
@@ -190,7 +198,7 @@ public partial class SettingsWindow : Window
         Validate();
     }
 
-    private void PreviewButton_Click(object sender, RoutedEventArgs e) => Chime.Play((int)VolumeSlider.Value);
+    private void PreviewButton_Click(object sender, RoutedEventArgs e) => Chime.Play(0, (int)VolumeSlider.Value);
 
     private void CancelButton_Click(object sender, RoutedEventArgs e) => Close();
 
@@ -204,10 +212,11 @@ public partial class SettingsWindow : Window
             Timers = _rows.Select(r =>
             {
                 TimeFormat.TryParse(r.TimeText, out int secs);
-                return new TimerEntry { Key = r.Key!.Value, Name = r.Name.Trim(), Seconds = secs };
+                return new TimerEntry { Key = r.Key!.Value, Name = r.Name.Trim(), Seconds = secs, Sound = r.Sound, Enabled = r.Enabled };
             }).ToList(),
             Volume = (int)VolumeSlider.Value,
             Opacity = OpacitySlider.Value / 100.0,
+            StopwatchName = string.IsNullOrWhiteSpace(StopwatchNameBox.Text) ? "스톱워치" : StopwatchNameBox.Text.Trim(),
         };
 
         try

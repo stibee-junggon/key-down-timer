@@ -22,6 +22,7 @@ public partial class OverlayWindow : Window
     private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
     private readonly ObservableCollection<TimerRow> _rows = new();
+    private readonly StopwatchRow _stopwatch = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly DispatcherTimer _ticker;
     private int _volume;
@@ -30,6 +31,7 @@ public partial class OverlayWindow : Window
     {
         InitializeComponent();
         RowsList.ItemsSource = _rows;
+        StopwatchBorder.DataContext = _stopwatch;
         _ticker = new DispatcherTimer(TimeSpan.FromMilliseconds(100), DispatcherPriority.Normal, OnTick, Dispatcher);
         _ticker.Start();
     }
@@ -49,8 +51,11 @@ public partial class OverlayWindow : Window
         byte alpha = (byte)Math.Round(Math.Clamp(settings.Opacity, 0.2, 1.0) * 255);
         RootBorder.Background = new SolidColorBrush(Color.FromArgb(alpha, 0x10, 0x10, 0x12));
 
+        _stopwatch.Name = settings.StopwatchName;
+
         _rows.Clear();
-        foreach (var t in settings.Timers) _rows.Add(new TimerRow(t));
+        foreach (var t in settings.Timers.Where(t => t.Enabled)) _rows.Add(new TimerRow(t));
+        EmptyHint.Text = settings.Timers.Count == 0 ? "⚙에서 타이머를 추가하세요" : "활성화된 타이머가 없습니다";
         EmptyHint.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         RestorePosition(settings);
@@ -68,12 +73,14 @@ public partial class OverlayWindow : Window
     private void OnTick(object? sender, EventArgs e)
     {
         var now = _clock.Elapsed;
-        bool anyFinished = false;
+        _stopwatch.Update(now);
+        TimerRow? finished = null;
         foreach (var row in _rows)
         {
-            if (row.Update(now)) anyFinished = true;
+            if (row.Update(now)) finished ??= row;
         }
-        if (anyFinished) Chime.Play(_volume);
+        // SoundPlayer는 동시 재생이 안 되므로 먼저 끝난 행의 소리 하나만 재생한다.
+        if (finished != null) Chime.Play(finished.Sound, _volume);
     }
 
     private void RestorePosition(AppSettings settings)
@@ -104,6 +111,10 @@ public partial class OverlayWindow : Window
         DragMove();
         App.Instance.SavePosition(Left, Top);
     }
+
+    private void StopwatchToggle_Click(object sender, RoutedEventArgs e) => _stopwatch.Toggle(_clock.Elapsed);
+
+    private void StopwatchReset_Click(object sender, RoutedEventArgs e) => _stopwatch.Reset(_clock.Elapsed);
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) => App.Instance.OpenSettings();
 

@@ -20,12 +20,14 @@ public class TimerRow : INotifyPropertyChanged
         KeyName = KeyNames.Get(entry.Key);
         Name = entry.Name;
         Duration = TimeSpan.FromSeconds(entry.Seconds);
+        Sound = entry.Sound;
     }
 
     public int Key { get; }
     public string KeyName { get; }
     public string Name { get; }
     public TimeSpan Duration { get; }
+    public int Sound { get; }
 
     private string _remainingText = "--:--";
     public string RemainingText { get => _remainingText; private set => Set(ref _remainingText, value); }
