@@ -51,7 +51,9 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="{Binding Name}" FontSize="12" Margin="0,0,6,0"
-                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Background="Transparent" ToolTip="더블클릭해서 이름 변경"
+                               MouseLeftButtonDown="StopwatchName_MouseLeftButtonDown"/>
                     <TextBlock Grid.Column="1" Text="{Binding ElapsedText}" FontSize="16"
                                FontWeight="Bold" FontFamily="Consolas, Segoe UI"
                                VerticalAlignment="Center"/>

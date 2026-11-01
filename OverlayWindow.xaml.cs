@@ -61,6 +61,8 @@ public partial class OverlayWindow : Window
         RestorePosition(settings);
     }
 
+    public void SetStopwatchName(string name) => _stopwatch.Name = name;
+
     public void Trigger(int vk)
     {
         var now = _clock.Elapsed;
@@ -107,9 +109,17 @@ public partial class OverlayWindow : Window
 
     private void RootBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState != MouseButtonState.Pressed) return;
+        // 더블클릭의 두 번째 클릭에서는 DragMove하지 않는다.
+        if (e.ButtonState != MouseButtonState.Pressed || e.ClickCount != 1) return;
         DragMove();
         App.Instance.SavePosition(Left, Top);
+    }
+
+    private void StopwatchName_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 2) return;
+        e.Handled = true;
+        App.Instance.OpenRename();
     }
 
     private void StopwatchToggle_Click(object sender, RoutedEventArgs e) => _stopwatch.Toggle(_clock.Elapsed);

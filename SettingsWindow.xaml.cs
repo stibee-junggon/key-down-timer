@@ -81,6 +81,8 @@ public partial class SettingsWindow : Window
         DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref on, sizeof(int));
     }
 
+    public void SetStopwatchName(string name) => StopwatchNameBox.Text = name;
+
     protected override void OnClosed(EventArgs e)
     {
         EndCapture();
