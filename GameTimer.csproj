@@ -10,7 +10,6 @@
     <AssemblyName>GameTimer</AssemblyName>
     <RootNamespace>GameTimer</RootNamespace>
     <SatelliteResourceLanguages>ko</SatelliteResourceLanguages>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
 </Project>
