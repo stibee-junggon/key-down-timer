@@ -26,15 +26,28 @@ public static class KeyNames
         [0x1000] = "A", [0x2000] = "B", [0x4000] = "X", [0x8000] = "Y",
     };
 
+    // 조합키 표시 순서
+    private static readonly int[] PadOrder =
+    {
+        0x0100, 0x0200, 0x0400, 0x0800, 0x0020, 0x0010, 0x0040, 0x0080,
+        0x0001, 0x0002, 0x0004, 0x0008, 0x1000, 0x2000, 0x4000, 0x8000,
+    };
+
     public static string Get(int vk)
     {
-        if (GamepadPoller.IsGamepadCode(vk))
-            return "패드 " + (PadNames.TryGetValue(vk & 0xFFFF, out var pad) ? pad : $"0x{vk & 0xFFFF:X4}");
+        if (GamepadPoller.IsGamepadCode(vk)) return "패드 " + GetPad(vk & 0xFFFF);
         if (vk >= 0x30 && vk <= 0x39) return ((char)vk).ToString();           // 0~9
         if (vk >= 0x41 && vk <= 0x5A) return ((char)vk).ToString();           // A~Z
         if (vk >= 0x60 && vk <= 0x69) return "Num" + (vk - 0x60);             // 숫자패드
         if (vk >= 0x70 && vk <= 0x87) return "F" + (vk - 0x70 + 1);           // F1~F24
         return Names.TryGetValue(vk, out var name) ? name : $"0x{vk:X2}";
+    }
+
+    // 버튼 마스크의 각 비트 이름을 "+"로 연결 (예: "LT+X")
+    private static string GetPad(int mask)
+    {
+        var parts = PadOrder.Where(bit => (mask & bit) != 0).Select(bit => PadNames[bit]).ToList();
+        return parts.Count > 0 ? string.Join("+", parts) : $"0x{mask:X4}";
     }
 }
 

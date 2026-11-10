@@ -4,7 +4,7 @@ namespace GameTimer;
 
 /// <summary>
 /// 엑스박스(XInput) 패드 버튼 감지. 백그라운드 스레드에서 폴링하며 입력은 차단하지 않는다.
-/// 코드 체계: GamepadFlag | XInput 버튼 비트 (LT/RT는 미사용 비트 0x0400/0x0800). 패드 번호는 구분하지 않는다.
+/// 코드 체계: GamepadFlag | XInput 버튼 마스크 (LT/RT는 미사용 비트 0x0400/0x0800, 여러 비트면 조합키). 패드 번호는 구분하지 않는다.
 /// </summary>
 public sealed class GamepadPoller : IDisposable
 {
@@ -47,8 +47,11 @@ public sealed class GamepadPoller : IDisposable
     private Thread? _thread;
     private volatile bool _stop;
 
-    /// <summary>패드 버튼이 새로 눌렸을 때 폴링 스레드에서 호출된다. 핸들러는 즉시 반환해야 한다.</summary>
-    public event Action<int>? ButtonDown;
+    /// <summary>
+    /// 패드(슬롯)별로 눌린 버튼 집합이 바뀌었을 때 폴링 스레드에서 호출된다. (newlyPressedMask, heldMask)
+    /// 마스크에는 GamepadFlag가 붙지 않으며 heldMask가 0이면 모두 뗀 상태. 핸들러는 즉시 반환해야 한다.
+    /// </summary>
+    public event Action<int, int>? ButtonsChanged;
 
     public static bool IsGamepadCode(int code) => code >= GamepadFlag;
 
@@ -90,8 +93,13 @@ public sealed class GamepadPoller : IDisposable
         if (XInputGetState((uint)user, out var state) != ERROR_SUCCESS)
         {
             _connected[user] = false;
-            _prevButtons[user] = 0;
             _nextRetry[user] = now + ReconnectMs;
+            // 누른 채 연결이 끊기면 모두 뗀 것으로 알린다. (캡처 중 해제를 놓치지 않게)
+            if (_prevButtons[user] != 0)
+            {
+                _prevButtons[user] = 0;
+                Notify(0, 0);
+            }
             return;
         }
         _connected[user] = true;
@@ -103,13 +111,13 @@ public sealed class GamepadPoller : IDisposable
         if (IsTriggerDown(state.Gamepad.bRightTrigger, (prev & RightTriggerBit) != 0)) buttons |= RightTriggerBit;
         _prevButtons[user] = buttons;
 
-        int pressed = buttons & ~prev;
-        for (int bit = 1; bit <= 0x8000; bit <<= 1)
-        {
-            if ((pressed & bit) == 0) continue;
-            try { ButtonDown?.Invoke(GamepadFlag | bit); }
-            catch { /* 핸들러 예외로 폴링이 멈추지 않게 한다. */ }
-        }
+        if (buttons != prev) Notify(buttons & ~prev, buttons);
+    }
+
+    private void Notify(int newlyPressed, int held)
+    {
+        try { ButtonsChanged?.Invoke(newlyPressed, held); }
+        catch { /* 핸들러 예외로 폴링이 멈추지 않게 한다. */ }
     }
 
     private static bool IsTriggerDown(byte value, bool wasDown) => wasDown ? value >= TriggerRelease : value > TriggerPress;

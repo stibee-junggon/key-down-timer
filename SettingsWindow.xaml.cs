@@ -17,7 +17,13 @@ public class EditRow : INotifyPropertyChanged
     private bool _isCapturing;
     public bool IsCapturing { get => _isCapturing; set { if (Set(ref _isCapturing, value)) OnPropertyChanged(nameof(KeyText)); } }
 
-    public string KeyText => IsCapturing ? "키/패드 버튼을 누르세요..." : Key is int k ? KeyNames.Get(k) : "(키 선택)";
+    /// <summary>캡처 중 누적된 패드 버튼 마스크 (표시용, 0이면 없음)</summary>
+    private int _padCapture;
+    public int PadCapture { get => _padCapture; set { if (Set(ref _padCapture, value)) OnPropertyChanged(nameof(KeyText)); } }
+
+    public string KeyText => IsCapturing
+        ? (PadCapture != 0 ? KeyNames.Get(GamepadPoller.GamepadFlag | PadCapture) + "..." : "키/패드 버튼을 누르세요...")
+        : Key is int k ? KeyNames.Get(k) : "(키 선택)";
 
     private string _name = "";
     public string Name { get => _name; set => Set(ref _name, value); }
@@ -146,7 +152,11 @@ public partial class SettingsWindow : Window
 
     private void EndCapture()
     {
-        if (_capturingRow != null) _capturingRow.IsCapturing = false;
+        if (_capturingRow != null)
+        {
+            _capturingRow.IsCapturing = false;
+            _capturingRow.PadCapture = 0;
+        }
         _capturingRow = null;
         App.Instance.IsCapturingKey = false;
     }
@@ -177,11 +187,15 @@ public partial class SettingsWindow : Window
         EndCapture();
     }
 
-    /// <summary>캡처 중일 때 패드 버튼을 키로 등록한다. (App이 UI 스레드로 넘겨 호출)</summary>
-    public void CaptureGamepad(int code)
+    /// <summary>
+    /// 캡처 중 눌린 패드 버튼 집합을 누적하다가 모두 떼면 누적된 조합을 키로 등록한다. (App이 UI 스레드로 넘겨 호출)
+    /// </summary>
+    public void CaptureGamepad(int heldMask)
     {
         if (_capturingRow == null) return;
-        _capturingRow.Key = code;
+        _capturingRow.PadCapture |= heldMask;
+        if (heldMask != 0 || _capturingRow.PadCapture == 0) return;
+        _capturingRow.Key = GamepadPoller.GamepadFlag | _capturingRow.PadCapture;
         EndCapture();
     }
 
