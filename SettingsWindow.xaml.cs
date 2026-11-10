@@ -17,7 +17,7 @@ public class EditRow : INotifyPropertyChanged
     private bool _isCapturing;
     public bool IsCapturing { get => _isCapturing; set { if (Set(ref _isCapturing, value)) OnPropertyChanged(nameof(KeyText)); } }
 
-    public string KeyText => IsCapturing ? "키를 누르세요..." : Key is int k ? KeyNames.Get(k) : "(키 선택)";
+    public string KeyText => IsCapturing ? "키/패드 버튼을 누르세요..." : Key is int k ? KeyNames.Get(k) : "(키 선택)";
 
     private string _name = "";
     public string Name { get => _name; set => Set(ref _name, value); }
@@ -174,6 +174,14 @@ public partial class SettingsWindow : Window
         if (vk <= 0) return;
 
         _capturingRow.Key = vk;
+        EndCapture();
+    }
+
+    /// <summary>캡처 중일 때 패드 버튼을 키로 등록한다. (App이 UI 스레드로 넘겨 호출)</summary>
+    public void CaptureGamepad(int code)
+    {
+        if (_capturingRow == null) return;
+        _capturingRow.Key = code;
         EndCapture();
     }
 

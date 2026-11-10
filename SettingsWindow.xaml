@@ -66,7 +66,7 @@
                                           IsChecked="{Binding Enabled, Mode=TwoWay}" ToolTip="사용 / 사용 안 함"/>
                                 <Button x:Name="KeyButton" Grid.Column="1" Content="{Binding KeyText}" Style="{StaticResource DarkButton}"
                                         Padding="6,4" HorizontalContentAlignment="Center"
-                                        Click="KeyButton_Click" ToolTip="클릭 후 등록할 키를 누르세요 (Esc: 취소)"/>
+                                        Click="KeyButton_Click" ToolTip="클릭 후 등록할 키나 패드 버튼을 누르세요 (Esc: 취소)"/>
                                 <TextBox x:Name="NameBox" Grid.Column="2" Margin="6,0" Style="{StaticResource DarkTextBox}"
                                          Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
                                 <TextBox x:Name="TimeBox" Grid.Column="3" Style="{StaticResource DarkTextBox}"
