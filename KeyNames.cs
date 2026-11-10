@@ -17,8 +17,19 @@ public static class KeyNames
         [0xDB] = "[", [0xDC] = "\\", [0xDD] = "]", [0xDE] = "'",
     };
 
+    // XInput 버튼 비트 → 이름 (LT/RT는 GamepadPoller의 가상 비트)
+    private static readonly Dictionary<int, string> PadNames = new()
+    {
+        [0x0001] = "↑", [0x0002] = "↓", [0x0004] = "←", [0x0008] = "→",
+        [0x0010] = "Start", [0x0020] = "Back", [0x0040] = "LS", [0x0080] = "RS",
+        [0x0100] = "LB", [0x0200] = "RB", [0x0400] = "LT", [0x0800] = "RT",
+        [0x1000] = "A", [0x2000] = "B", [0x4000] = "X", [0x8000] = "Y",
+    };
+
     public static string Get(int vk)
     {
+        if (GamepadPoller.IsGamepadCode(vk))
+            return "패드 " + (PadNames.TryGetValue(vk & 0xFFFF, out var pad) ? pad : $"0x{vk & 0xFFFF:X4}");
         if (vk >= 0x30 && vk <= 0x39) return ((char)vk).ToString();           // 0~9
         if (vk >= 0x41 && vk <= 0x5A) return ((char)vk).ToString();           // A~Z
         if (vk >= 0x60 && vk <= 0x69) return "Num" + (vk - 0x60);             // 숫자패드

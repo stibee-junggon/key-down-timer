@@ -7,6 +7,7 @@ public partial class App : Application
 {
     private Mutex? _mutex;
     private KeyboardHook? _hook;
+    private GamepadPoller? _gamepad;
     private OverlayWindow? _overlay;
     private SettingsWindow? _settingsWindow;
 
@@ -54,6 +55,10 @@ public partial class App : Application
         _hook.KeyDown += OnGlobalKeyDown;
         _hook.Install();
 
+        _gamepad = new GamepadPoller();
+        _gamepad.ButtonDown += OnGamepadButtonDown;
+        _gamepad.Start();
+
         // 첫 실행처럼 타이머가 없으면 설정 창을 바로 띄운다.
         if (Settings.Timers.Count == 0) OpenSettings();
     }
@@ -75,6 +80,8 @@ public partial class App : Application
     {
         _hook?.Dispose();
         _hook = null;
+        _gamepad?.Dispose();
+        _gamepad = null;
         if (_mutex != null)
         {
             _mutex.ReleaseMutex();
@@ -89,6 +96,14 @@ public partial class App : Application
     {
         if (IsCapturingKey || _overlay?.IsEditingName == true) return;
         Dispatcher.BeginInvoke(() => _overlay?.Trigger(vk));
+    }
+
+    // 패드 폴링 스레드에서 호출된다. 설정 창이 키 캡처 중이면 패드 버튼을 그 키로 등록한다.
+    private void OnGamepadButtonDown(int code)
+    {
+        if (_overlay?.IsEditingName == true) return;
+        if (IsCapturingKey) Dispatcher.BeginInvoke(() => _settingsWindow?.CaptureGamepad(code));
+        else Dispatcher.BeginInvoke(() => _overlay?.Trigger(code));
     }
 
     public void OpenSettings()
