@@ -56,7 +56,7 @@ public partial class App : Application
         _hook.Install();
 
         _gamepad = new GamepadPoller();
-        _gamepad.ButtonDown += OnGamepadButtonDown;
+        _gamepad.ButtonsChanged += OnGamepadButtonsChanged;
         _gamepad.Start();
 
         // 첫 실행처럼 타이머가 없으면 설정 창을 바로 띄운다.
@@ -98,12 +98,13 @@ public partial class App : Application
         Dispatcher.BeginInvoke(() => _overlay?.Trigger(vk));
     }
 
-    // 패드 폴링 스레드에서 호출된다. 설정 창이 키 캡처 중이면 패드 버튼을 그 키로 등록한다.
-    private void OnGamepadButtonDown(int code)
+    // 패드 폴링 스레드에서 호출된다. 설정 창이 키 캡처 중이면 눌린 버튼 집합을 넘겨 등록하게 한다.
+    // 아니면 새 버튼이 눌린 순간의 눌린 버튼 집합 전체와 정확히 일치하는 타이머만 트리거한다. (LT 누른 채 X → "LT+X"만)
+    private void OnGamepadButtonsChanged(int newlyPressed, int held)
     {
         if (_overlay?.IsEditingName == true) return;
-        if (IsCapturingKey) Dispatcher.BeginInvoke(() => _settingsWindow?.CaptureGamepad(code));
-        else Dispatcher.BeginInvoke(() => _overlay?.Trigger(code));
+        if (IsCapturingKey) Dispatcher.BeginInvoke(() => _settingsWindow?.CaptureGamepad(held));
+        else if (newlyPressed != 0) Dispatcher.BeginInvoke(() => _overlay?.Trigger(GamepadPoller.GamepadFlag | held));
     }
 
     public void OpenSettings()
